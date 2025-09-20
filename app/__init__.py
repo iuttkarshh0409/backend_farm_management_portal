@@ -1,5 +1,6 @@
 """Application factory and configuration."""
 
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -10,7 +11,9 @@ from flask_limiter.util import get_remote_address
 import logging
 import os
 
+
 from config import config
+
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -21,6 +24,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"]
 )
+
 
 
 def create_app(config_name=None):
@@ -37,13 +41,36 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    
+    # CORS Configuration - UPDATED FOR REACT INTEGRATION
     cors.init_app(app, resources={
         r"/api/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
+            "origins": [
+                "http://localhost:3000",      # React dev server
+                "http://127.0.0.1:3000",      # Alternative localhost
+                "http://localhost:3001",      # Backup port
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            "allow_headers": [
+                "Content-Type", 
+                "Authorization", 
+                "Access-Control-Allow-Credentials",
+                "Access-Control-Allow-Origin"
+            ],
+            "supports_credentials": True,
+            "expose_headers": ["Content-Type", "Authorization"]
+        },
+        r"/health": {
+            "origins": [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000", 
+                "http://localhost:3001",
+            ],
+            "methods": ["GET", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Origin"]
         }
     })
+    
     limiter.init_app(app)
     
     # Register blueprints
@@ -83,16 +110,14 @@ def create_app(config_name=None):
         db.session.rollback()
         return {'error': 'Internal server error'}, 500
     
-    # Health check endpoint
+    # Health check endpoint - Updated for React integration
     @app.route('/health')
     def health_check():
-        return {'status': 'healthy', 'service': 'Farm Management Portal API'}
+        return {'status': 'healthy', 'service': 'Farm Management Portal API', 'message': 'Backend ready for React integration'}
     
     return app
 
 
+
 # Import models to ensure they are registered with SQLAlchemy
 from app.models import user, animal
-
-
-
